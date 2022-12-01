@@ -1,0 +1,88 @@
+version: '2'
+
+services:
+  build_db:
+    image: python/datasim/superhero
+    environment:
+      - REDIS_HOST=redis
+    env_file:
+      - ../.env
+    command: ["python", "build_db.py"]
+    depends_on:
+      - redis
+  
+  worker:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    image: python/datasim/superhero/pubsub/rabbitmq
+    environment:
+      - REDIS_HOST=redis
+      - AMQP_HOST=rabbit
+    env_file:
+      - ../.env
+    command: ["python", "worker.py"]
+    depends_on:
+      - rabbit
+  
+  superhero_server:
+    image: python/datasim/superhero/pubsub/rabbitmq
+    environment:
+      - REDIS_HOST=redis
+      - SERVER_SLEEP=0.2
+      - WEBSOCKET_HOST=0.0.0.0
+      - AMQP_HOST=rabbit
+      - WORKER_CHANNEL=lib.server.lobby
+      - LOGGER_MODULE=rabbit
+    env_file:
+      - ../.env
+    depends_on:
+      - redis
+    expose:
+      - ${WEBSOCKET_PORT}
+  
+  player:
+    image: python/datasim/superhero
+    environment:
+      - REDIS_HOST=redis
+      - WEBSOCKET_HOST=superhero_nginx
+      - WEBSOCKET_PORT=8080
+      - WAIT_HOSTS=rabbit:15672
+    command: ["sh", "-c", "/wait && python client.py"]
+    depends_on:
+      - superhero_server
+  
+  superhero_nginx:
+    image: python/datasim/superhero/nginx
+    env_file:
+      - ../.env
+    depends_on:
+      - superhero_server
+    ports:
+      - "8080:8080"
+
+  redis:
+    image: docker.io/bitnami/redis:7.0
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    env_file:
+      - ../.env
+    ports:
+      - '${REDIS_PORT}:${REDIS_PORT}'
+    volumes:
+      - 'redis_data:/bitnami/redis/data'
+  
+  rabbit:
+    hostname: rabbit
+    image: rabbitmq:3-management-alpine
+    ports:
+      - '${AMQP_PORT}:${AMQP_PORT}'
+      - '15672:15672'
+    volumes:
+      - 'rabbit_data:/var/lib/rabbitmq'
+
+volumes:
+  redis_data:
+    driver: local
+  rabbit_data:
+    driver: local

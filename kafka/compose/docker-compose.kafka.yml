@@ -1,0 +1,120 @@
+version: '2'
+
+services:
+  build_db:
+    image: python/datasim/superhero
+    environment:
+      - REDIS_HOST=redis
+    env_file:
+      - ../.env
+    command: ["python", "build_db.py"]
+    depends_on:
+      - redis
+
+  worker:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    image: python/datasim/superhero/pubsub/kafka
+    environment:
+      - REDIS_HOST=redis
+      - KAFKA_HOST=kafka
+    env_file:
+      - ../.env
+    command: ["python", "worker.py"]
+    depends_on:
+      - kafka
+
+  superhero_server:
+    image: python/datasim/superhero/pubsub/kafka
+    environment:
+      - REDIS_HOST=redis
+      - SERVER_SLEEP=0.2
+      - WEBSOCKET_HOST=0.0.0.0
+      - KAFKA_HOST=kafka
+      - LOGGER_MODULE=kafka
+    env_file:
+      - ../.env
+    depends_on:
+      - redis
+    expose:
+      - ${WEBSOCKET_PORT}
+
+  player:
+    image: python/datasim/superhero
+    environment:
+      - REDIS_HOST=redis
+      - WEBSOCKET_HOST=superhero_nginx
+      - WEBSOCKET_PORT=8080
+      - WAIT_HOSTS=kafka:9092
+      - WAIT_TIMEOUT=120
+    command: ["sh", "-c", "/wait && python client.py"]
+    depends_on:
+      - superhero_server
+
+  superhero_nginx:
+    image: python/datasim/superhero/nginx
+    env_file:
+      - ../.env
+    depends_on:
+      - superhero_server
+    ports:
+      - "8080:8080"
+
+  redis:
+    image: docker.io/bitnami/redis:7.0
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    env_file:
+      - ../.env
+    ports:
+      - '${REDIS_PORT}:${REDIS_PORT}'
+    volumes:
+      - 'redis_data:/bitnami/redis/data'
+
+  zookeeper:
+    image: docker.io/bitnami/zookeeper:3.8
+    ports:
+      - "2181:2181"
+    volumes:
+      - "zookeeper_data:/bitnami"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+  # https://stackoverflow.com/questions/70694061/failed-to-collect-cluster-default-info-java-lang-illegalstateexception-error-wh/74477906#74477906
+  kafka:
+    image: docker.io/bitnami/kafka:3.2
+    ports:
+      - "${KAFKA_PORT}:${KAFKA_PORT}"
+      - "${KAFKA_EXTERNAL_PORT}:${KAFKA_EXTERNAL_PORT}"
+    volumes:
+      - "kafka_data:/bitnami"
+    environment:
+      - "KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181"
+      - "ALLOW_PLAINTEXT_LISTENER=yes"
+      - "KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT"
+      - "KAFKA_CFG_LISTENERS=CLIENT://:${KAFKA_PORT},EXTERNAL://:${KAFKA_EXTERNAL_PORT}"
+      - "KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:${KAFKA_PORT},EXTERNAL://localhost:${KAFKA_EXTERNAL_PORT}"
+      - "KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT"
+      - "KAFKA_CFG_ADVERTISED_HOST_NAME=kafka"
+    depends_on:
+      - zookeeper
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui
+    container_name: kafka-ui
+    ports:
+      - "8081:8081"
+    restart: always
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:${KAFKA_PORT}
+      - SERVER_PORT=8081
+
+volumes:
+  redis_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  kafka_data:
+    driver: local
