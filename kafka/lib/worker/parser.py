@@ -1,6 +1,6 @@
-import pyarrow as pa
-import pyarrow.parquet as pq
 import random
+import json
+import gzip
 import os
 
 # Environment Variables
@@ -25,28 +25,13 @@ class ETL_Client:
         
         return msg.decode('utf8')
     
-    def load(self, data, schema, schema_name, ):
-        map = {}
-        for k in schema.names:
-            map[k] = []
-    
-        for r in data:
-            for k in r.keys():
-                map[k].append(r[k])
-    
-        tbl = pa.Table.from_pydict(
-            dict(zip(schema.names, tuple([map[c] for c in map.keys()]))),
-            schema=schema
-        )
-
-        if not os.path.isdir(os.path.join(OUTPUT_DIR, 'superhero', schema_name)):
-            os.makedirs(os.path.join(OUTPUT_DIR, 'superhero', schema_name))
+    def load(self, data, table_name):
+        file_path = os.path.join(OUTPUT_DIR, 'superhero', table_name, f'{self.game_token}_{HOSTNAME}.gz')
+        if not os.path.isdir(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
         
-        pq.write_table(
-            tbl,
-            where='%s_%s.gz' % (os.path.join(OUTPUT_DIR, 'superhero', schema_name, self.game_token), HOSTNAME),
-            compression='gzip'
-        )
+        with gzip.open(file_path, 'wt') as f:
+            f.write(json.dumps(data))
 
 class ETL_Game_Meta(ETL_Client):
 

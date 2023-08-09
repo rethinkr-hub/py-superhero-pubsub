@@ -7,13 +7,11 @@
 # https://ably.com/topic/websockets
 
 from lib.worker.parser import ETL_Game_Meta, ETL_Game_Podium
-from lib.model import model_parquet
 
 import importlib
 import logging
 import redis
 import json
-import sys
 import os
 
 # Enviornment Variables
@@ -62,7 +60,7 @@ def etl_game_meta(msg):
 
         # Load
         if len(data) > 1:
-            client.load(data, model_parquet.SCHEMA_GAME_META_PQ, 'GAME_META')
+            client.load(data, 'GAME_META')
 
 def etl_game_podium(msg):
     logger.info('Running Game Podium ETL')
@@ -79,7 +77,7 @@ def etl_game_podium(msg):
         data = client.transform_game_podium(participants, logs)
     
         # Load
-        client.load(data, model_parquet.SCHEMA_GAME_PODIUM_PQ, 'GAME_PODIUM')
+        client.load(data, 'GAME_PODIUM')
 
 def sub_routine(msg):
     logger.info('Running Subscription Routine')

@@ -19,7 +19,7 @@ async def main():
     logger=logging.getLogger('%s.%s' % (LOGGER_MODULE, QUEUE))
 
     async def fanout(msg):
-        logger.info('Fanning out message from Redis to RabbitMQ')
+        logger.info('Narrowcasting from Redis to RabbitMQ')
         if isinstance(msg, bytes):
             msg = json.loads(msg.decode('utf8'))
         elif isinstance(msg, str):
@@ -27,11 +27,11 @@ async def main():
             
         await rabbit_client.publish(msg, queue=msg['name'])
     
-    logger.info('Establishing Fanout Publisher for RabbitMQ')
+    logger.info('Establishing Publisher for RabbitMQ')
     rabbit_client = Rabbit_Publisher()
     await rabbit_client.connect()
 
-    logger.info('Establishing Fanout Subscriber for Redis')
+    logger.info('Establishing Subscriber for Redis')
     redis_client = Redis_Subscriber()
     redis_client.callback_function = fanout
     await redis_client.run()

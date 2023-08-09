@@ -24,6 +24,8 @@ services:
     command: ["python", "worker.py"]
     depends_on:
       - kafka
+    volumes:
+      - '../data:${OUTPUT_DIR}'
 
   superhero_server:
     image: python/datasim/superhero/pubsub/kafka

@@ -20,7 +20,7 @@ async def main():
     logger=logging.getLogger('%s.%s' % (LOGGER_MODULE, QUEUE))
     
     async def fanout(msg):
-        logger.info('Fanning out message from Redis to Kafka')
+        logger.info('Narrowcast from Redis to Kafka')
         if isinstance(msg, bytes):
             msg = json.loads(msg.decode('utf8'))
         elif isinstance(msg, str):
@@ -28,11 +28,11 @@ async def main():
 
         await kafka_client.publish(msg, queue=msg['name'])
     
-    logger.info('Establishing Fanout Publisher for Kafka')
+    logger.info('Establishing Publisher for Kafka')
     kafka_client = Kafka_Publisher()
     await kafka_client.connect()
 
-    logger.info('Establishing Fanout Subscriber for Redis')
+    logger.info('Establishing Subscriber for Redis')
     redis_client = Redis_Subscriber()
     redis_client.callback_function = fanout
     await redis_client.run()
