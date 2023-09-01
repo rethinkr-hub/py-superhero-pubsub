@@ -29,17 +29,17 @@ services:
     build:
       context: ../
       dockerfile: Dockerfile
-    image: python/datasim/superhero/pubsub/redis-fanout
+    image: python/datasim/superhero/pubsub/redis-narrowcast
     environment:
       - REDIS_HOST=redis
     env_file:
       - ../.env
-    command: ["python", "worker_fanout.py"]
+    command: ["python", "worker_narrowcast.py"]
     depends_on:
       - redis
 
   worker:
-    image: python/datasim/superhero/pubsub/redis-fanout
+    image: python/datasim/superhero/pubsub/redis-narrowcast
     environment:
       - REDIS_HOST=redis
     env_file:

@@ -49,7 +49,7 @@ services:
       - AMQP_HOST=rabbit
     env_file:
       - ../.env
-    command: ["python", "worker_fanout.py"]
+    command: ["python", "worker_narrowcast.py"]
     depends_on:
       - redis
   
